@@ -11,6 +11,7 @@ from app.schemas.response import (
     KcCertificationSummary
 )
 from app.services.report_service import generate_markdown_report
+from app.services.category_matcher import match_category
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,16 @@ def run_diagnosis(request: DiagnosisRequest, app_data: Dict[str, Any]) -> Diagno
     
     # 입력값 요약 (request의 필드들을 dict로 변환)
     input_summary = request.model_dump()
-    
+
+    # Phase 2: 법정 품목명 후보 매칭 (data/master_json/product_category_index.json 기반)
+    # 파일이 없거나 비어 있으면 빈 리스트로 안전 반환
+    index_data = (app_data or {}).get("master_json", {}).get("product_category_index", [])
+    try:
+        legal_product_candidates = match_category(request, index_data)
+    except Exception as e:
+        logger.warning(f"category matching failed, returning empty candidates: {e}")
+        legal_product_candidates = []
+
     # 빈 구조체 생성
     empty_cert_diagnosis = CertificationDiagnosis(
         certification_type="확인 전",
@@ -53,7 +63,7 @@ def run_diagnosis(request: DiagnosisRequest, app_data: Dict[str, Any]) -> Diagno
         case_id=f"case_{uuid.uuid4().hex[:8]}",
         status="success",
         input_summary=input_summary,
-        legal_product_candidates=[],
+        legal_product_candidates=legal_product_candidates,
         certification_diagnosis=empty_cert_diagnosis,
         institution_guidance=empty_inst_guidance,
         recall_reason_summary=empty_recall_summary,

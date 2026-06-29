@@ -1,6 +1,10 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+
+# Virtual environments
 .env
 .venv/
 env/
@@ -13,6 +17,20 @@ venv.bak/
 .vscode/
 .idea/
 
-# Data
-# We might want to keep the directory structure but ignore large content
-# data/safety_json/kc_certification.json
+# Hugging Face / model cache
+hf_cache/
+models/
+*.bin
+*.safetensors
+*.gguf
+
+# Archives
+*.zip
+*.tar.gz
+*.gz
+
+# Large safety data files (237MB+ — keep directory, exclude file)
+data/safety_json/kc_certification.json
+
+# Log files
+*.log

@@ -25,19 +25,27 @@ async def lifespan(app: FastAPI):
     # Load data on startup
     logger.info("Loading baseline JSON data...")
     
-    # Load master_json
+    # Load master_json (핸드오프 문서 §3.2 기준 9개 파일)
     master_files = [
         "product_category_index.json",
+        "product_category_dictionary.json",
         "certification_annex_rule.json",
-        "certification_process_rule.json"
+        "certification_process_rule.json",
+        "safety_standard_document.json",
+        "safety_standard_check_item.json",
+        "test_institution.json",
+        "institution_scope.json",
+        "supplier_conformity_scope.json",
     ]
     for filename in master_files:
         filepath = settings.MASTER_JSON_DIR / filename
         name_key = filename.replace(".json", "")
         if filepath.exists():
             app_data["master_json"][name_key] = load_json(filepath)
+            logger.info(f"Loaded {filename}")
         else:
             app_data["master_json"][name_key] = []
+            logger.warning(f"Not found (skipped): {filename}")
             
     # Load safety_json
     safety_files = [
