@@ -1,36 +1,15 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.pyo
-
-# Virtual environments
+node_modules
+dist
 .env
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDE
-.vscode/
-.idea/
-
-# Hugging Face / model cache
-hf_cache/
-models/
-*.bin
-*.safetensors
-*.gguf
-
-# Archives
-*.zip
-*.tar.gz
-*.gz
-
-# Large safety data files (237MB+ — keep directory, exclude file)
-data/safety_json/kc_certification.json
-
-# Log files
+.env.local
 *.log
+
+frontend/node_modules
+frontend/dist
+
+backend/.venv
+backend/venv
+backend/__pycache__
+backend/app.db
+
+backend_old
