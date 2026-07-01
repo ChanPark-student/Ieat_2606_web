@@ -23,10 +23,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 
 
-# =========================
-# 설정
-# =========================
-
 DATABASE_URL = "sqlite:///./app.db"
 
 JWT_SECRET_KEY = "change_this_secret_for_mvp"
@@ -66,10 +62,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# =========================
-# DB 모델
-# =========================
 
 class User(Base):
     __tablename__ = "users"
@@ -117,10 +109,6 @@ class DiagnosisCase(Base):
 Base.metadata.create_all(bind=engine)
 
 
-# =========================
-# Pydantic 스키마
-# =========================
-
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -147,10 +135,6 @@ class DiagnosisRequest(BaseModel):
     additional_info: Optional[str] = None
 
 
-# =========================
-# 유틸
-# =========================
-
 def get_db():
     db = SessionLocal()
     try:
@@ -160,10 +144,6 @@ def get_db():
 
 
 def hash_password(password: str) -> str:
-    """
-    MVP용 비밀번호 해시 함수.
-    상용 서비스에서는 bcrypt, argon2 등 검증된 password hashing 알고리즘 사용 필요.
-    """
     salt = secrets.token_hex(16)
     hashed = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
     return f"{salt}${hashed}"
@@ -228,8 +208,23 @@ def create_mock_ai_result(case_id: str, request: DiagnosisRequest) -> Dict[str, 
 
     return {
         "case_id": case_id,
-        "status": "completed",
+        "status": "success",
         "product_name": product_name,
+        "model_name": request.model_name,
+        "input_summary": {
+            "product_name": request.product_name,
+            "user_query": request.user_query,
+            "target_age": request.target_age,
+            "material_text": request.material_text,
+            "power_type": request.power_type,
+            "battery_included": request.battery_included,
+            "import_or_manufacture": request.import_or_manufacture,
+            "model_name": request.model_name,
+            "brand_name": request.brand_name,
+            "maker_country": request.maker_country,
+            "cert_num": request.cert_num,
+            "additional_info": request.additional_info,
+        },
         "legal_product_candidates": [
             {
                 "product_name": "아동용 섬유제품",
@@ -324,10 +319,6 @@ def serialize_case(case: DiagnosisCase) -> Dict[str, Any]:
         "created_at": case.created_at.isoformat(),
     }
 
-
-# =========================
-# API
-# =========================
 
 @app.get("/")
 def health_check():
@@ -437,7 +428,7 @@ def create_diagnosis(
     try:
         ai_result = create_mock_ai_result(case_id, request)
 
-        case.status = "completed"
+        case.status = "success"
         case.ai_output_json = ai_result
         case.final_report_markdown = ai_result.get("final_report_markdown")
         case.updated_at = datetime.utcnow()
@@ -474,7 +465,6 @@ def list_diagnoses(
     return {
         "items": [serialize_case(case) for case in cases]
     }
-
 
 @app.get("/diagnoses/{case_id}")
 def get_diagnosis(

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import { createMockDiagnosis } from "../data/mockDiagnosis";
+import { createDiagnosis } from "../api/diagnosisApi";
 
 export default function DiagnosisNewPage() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ export default function DiagnosisNewPage() {
     target_age: "어린이 13세 이하",
     material_text: "",
     power_type: "전원 없음",
-    battery_included: "아니오",
+    battery_included: false,
     import_or_manufacture: "수입",
     model_name: "",
     brand_name: "",
@@ -26,18 +26,27 @@ export default function DiagnosisNewPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
-    const result = createMockDiagnosis({
-      ...form,
-      battery_included: form.battery_included === "예",
-    });
+    try {
+      const result = await createDiagnosis({
+        ...form,
+      });
 
-    localStorage.setItem("latest_diagnosis_input", JSON.stringify(form));
-    localStorage.setItem("latest_diagnosis_result", JSON.stringify(result));
+      localStorage.setItem("latest_diagnosis_result", JSON.stringify(result));
+      localStorage.setItem("selected_case_id", result.case_id);
 
-    navigate("/diagnoses/result");
+      navigate("/diagnoses/result");
+    } catch (err) {
+      if (err.message === "Not authenticated" || err.message === "invalid_token") {
+        alert("로그인이 필요합니다. 다시 로그인해주세요.");
+        navigate("/login");
+        return;
+      }
+
+      alert(`진단 요청 실패: ${err.message}`);
+    }
   }
 
   return (
@@ -54,7 +63,7 @@ export default function DiagnosisNewPage() {
 
           <p className="hero-desc">
             제품명, 사용연령, 소재, 전원 방식, 제조·수입 여부를 입력하면
-            인증유형 후보와 리콜 리스크를 mock AI 결과로 출력합니다.
+            백엔드 FastAPI 진단 API로 전달됩니다.
           </p>
         </section>
 
@@ -145,14 +154,19 @@ export default function DiagnosisNewPage() {
               </div>
 
               <div className="field">
-                <label>배터리 포함 여부</label>
+                <label>배터리 포함 여부 *</label>
                 <select
                   name="battery_included"
-                  value={form.battery_included}
-                  onChange={handleChange}
+                  value={form.battery_included ? "true" : "false"}
+                  onChange={(e) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      battery_included: e.target.value === "true",
+                    }));
+                  }}
                 >
-                  <option>아니오</option>
-                  <option>예</option>
+                  <option value="false">아니오</option>
+                  <option value="true">예</option>
                 </select>
               </div>
             </div>

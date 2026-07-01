@@ -1,12 +1,36 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginUser } from "../api/authApi";
 
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  function handleLogin(e) {
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleLogin(e) {
     e.preventDefault();
-    localStorage.setItem("access_token", "mock_token");
-    navigate("/home");
+    setError("");
+    setLoading(true);
+
+    try {
+      await loginUser(form);
+      navigate("/home");
+    } catch (err) {
+      setError("로그인 실패: 이메일 또는 비밀번호를 확인하세요.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -31,7 +55,7 @@ export default function LoginPage() {
             </h1>
 
             <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-              신제품 출시 전 인증·리콜 리스크 진단을 시작하세요.
+              백엔드 FastAPI 인증 서버에 로그인합니다.
             </p>
           </div>
 
@@ -39,19 +63,39 @@ export default function LoginPage() {
             <div className="field">
               <label>이메일</label>
               <input
+                name="email"
                 type="email"
-                placeholder="example@company.com"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="test123@example.com"
                 required
               />
             </div>
 
             <div className="field">
               <label>비밀번호</label>
-              <input type="password" placeholder="••••••••" required />
+              <input
+                name="password"
+                type="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="password1234"
+                required
+              />
             </div>
 
-            <button className="btn-primary" style={{ width: "100%", marginTop: 8 }}>
-              로그인 →
+            {error && (
+              <p style={{ color: "var(--danger)", fontWeight: 700 }}>
+                {error}
+              </p>
+            )}
+
+            <button
+              className="btn-primary"
+              style={{ width: "100%", marginTop: 8 }}
+              disabled={loading}
+            >
+              {loading ? "로그인 중..." : "로그인 →"}
             </button>
           </form>
 
@@ -76,52 +120,12 @@ export default function LoginPage() {
 
       <section className="auth-side">
         <div>
-          <span className="eyebrow">AI Compliance Assistant</span>
-
-          <h2>출시 전 리스크를 먼저 확인하는 웹 프로토타입</h2>
-
+          <span className="eyebrow">FastAPI Connected</span>
+          <h2>JWT 로그인 API와 연결된 MVP 화면</h2>
           <p>
-            제품 정보를 입력하면 예상 인증유형, 적용 안전기준, 유사 KC 인증
-            사례, 국내 리콜 사유, 출시 전 확인사항을 카드와 보고서 형태로
-            정리합니다.
+            로그인 성공 시 백엔드에서 access token을 발급받고, 이후 진단 생성과
+            이력 조회 요청에 Bearer Token을 포함합니다.
           </p>
-
-          <div
-            style={{
-              marginTop: 34,
-              padding: 22,
-              borderRadius: 22,
-              background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.22)",
-              backdropFilter: "blur(14px)",
-            }}
-          >
-            <p style={{ margin: "0 0 10px", color: "#dce1ff", fontWeight: 800 }}>
-              AI 실시간 진단
-            </p>
-
-            <div
-              style={{
-                height: 10,
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.18)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: "85%",
-                  height: "100%",
-                  background: "#dce1ff",
-                  borderRadius: 999,
-                }}
-              />
-            </div>
-
-            <p style={{ margin: "12px 0 0", color: "#dce1ff" }}>
-              MVP 진단 흐름 준비율: 85%
-            </p>
-          </div>
         </div>
       </section>
     </div>
