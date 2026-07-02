@@ -13,3 +13,16 @@ backend/__pycache__
 backend/app.db
 
 backend_old
+
+# Virtual Environment
+venv/
+.venv/
+
+# HF Model Cache
+hf_cache/
+
+# Large Dataset & DB & Temp dumps
+data/safety_json/kc_certification.json
+app.db
+result_dump.json
+

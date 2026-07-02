@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신제품 출시 전 인증·리콜 리스크 AI 진단</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  body {
+    font-family: -apple-system, "Malgun Gothic", "Segoe UI", sans-serif;
+    max-width: 860px;
+    margin: 32px auto;
+    padding: 0 20px 80px;
+    line-height: 1.65;
+    color: #1a1a1a;
+    background: #fafafa;
+  }
+  h1 { font-size: 1.35em; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 0.9em; margin-bottom: 20px; }
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    margin-bottom: 20px;
+    padding: 18px;
+    background: #fff;
+    border: 1px solid #e2e2e2;
+    border-radius: 10px;
+  }
+  form .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 0.82em; color: #555; margin-bottom: 3px; }
+  input, select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.95em;
+  }
+  .checkbox-row { display: flex; align-items: center; gap: 6px; margin-top: 22px; }
+  .checkbox-row input { width: auto; }
+  button {
+    grid-column: 1 / -1;
+    padding: 11px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+  }
+  button:disabled { background: #a3a3a3; cursor: default; }
+  #status { margin: 10px 0; color: #555; font-size: 0.9em; min-height: 1.2em; }
+  #meta {
+    font-size: 0.8em; color: #888; margin-bottom: 16px;
+    padding: 8px 12px; background: #f0f0f0; border-radius: 6px;
+    display: none;
+  }
+  #report {
+    background: #fff; border: 1px solid #e2e2e2; border-radius: 10px;
+    padding: 24px 28px;
+  }
+  #report:empty { display: none; }
+  #report h1 { font-size: 1.3em; }
+  #report h2 { font-size: 1.1em; margin-top: 1.6em; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+  #report h3 { font-size: 1em; }
+  #report blockquote {
+    background: #f8f9fa; border-left: 4px solid #ccc;
+    margin: 8px 0; padding: 8px 16px; color: #555;
+  }
+  #report code { background: #f3f3f3; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  #report ul { padding-left: 22px; }
+  #report hr { border: none; border-top: 1px solid #e2e2e2; margin: 20px 0; }
+</style>
+</head>
+<body>
+<h1>신제품 출시 전 인증·리콜 리스크 AI 진단</h1>
+<div class="subtitle">입력 후 진단 실행을 누르면 <code>/diagnose</code> 결과를 마크다운으로 보기 좋게 렌더링합니다.</div>
+
+<form id="diagForm">
+  <div>
+    <label>제품명 *</label>
+    <input name="product_name" required placeholder="예: 장난감 자동차">
+  </div>
+  <div>
+    <label>대상 연령</label>
+    <input name="target_age" placeholder="예: 5세">
+  </div>
+  <div class="full">
+    <label>문의 내용</label>
+    <input name="user_query" placeholder="예: 5세 어린이가 사용하는 건전지 장난감 자동차를 수입하려고 합니다.">
+  </div>
+  <div>
+    <label>소재</label>
+    <input name="material_text" placeholder="예: 플라스틱, 금속 나사">
+  </div>
+  <div>
+    <label>전원</label>
+    <input name="power_type" placeholder="예: 건전지, 없음">
+  </div>
+  <div>
+    <label>수입/제조</label>
+    <select name="import_or_manufacture">
+      <option value="수입">수입</option>
+      <option value="제조">제조</option>
+    </select>
+  </div>
+  <div class="checkbox-row">
+    <input type="checkbox" name="battery_included" id="battery">
+    <label for="battery" style="margin:0">배터리 포함</label>
+  </div>
+  <button type="submit" id="submitBtn">진단 실행</button>
+</form>
+
+<div id="status"></div>
+<div id="meta"></div>
+<div id="report"></div>
+
+<script>
+const form = document.getElementById('diagForm');
+const statusEl = document.getElementById('status');
+const metaEl = document.getElementById('meta');
+const reportEl = document.getElementById('report');
+const submitBtn = document.getElementById('submitBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const body = {
+    product_name: fd.get('product_name') || '',
+    user_query: fd.get('user_query') || '',
+    target_age: fd.get('target_age') || '',
+    material_text: fd.get('material_text') || '',
+    power_type: fd.get('power_type') || '',
+    battery_included: fd.get('battery_included') === 'on',
+    import_or_manufacture: fd.get('import_or_manufacture') || '',
+  };
+
+  submitBtn.disabled = true;
+  statusEl.textContent = '진단 중입니다... (LLM 모드가 켜져 있으면 CPU 환경에서 수 분~1시간 이상 걸릴 수 있습니다)';
+  metaEl.style.display = 'none';
+  reportEl.innerHTML = '';
+
+  try {
+    const res = await fetch('/diagnose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    const data = await res.json();
+    statusEl.textContent = '완료';
+    metaEl.style.display = 'block';
+    metaEl.textContent =
+      `report_generation_mode: ${data.report_generation_mode}  |  model: ${data.model_name}  |  ` +
+      `used_rag_chunk_ids: ${data.used_rag_chunk_ids.length}건  |  case_id: ${data.case_id}`;
+    reportEl.innerHTML = marked.parse(data.final_report_markdown || '(보고서 내용 없음)');
+  } catch (err) {
+    statusEl.textContent = '오류: ' + err.message;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

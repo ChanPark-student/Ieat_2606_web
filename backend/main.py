@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 from uuid import uuid4
 import hashlib
 import secrets
+import requests
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -395,6 +396,27 @@ def me(current_user: User = Depends(get_current_user)):
     }
 
 
+AI_SERVER_URL = "http://127.0.0.1:8001/diagnose"
+
+def map_ai_response_to_frontend(ai_res: dict, product_name: str) -> dict:
+    ai_res["product_name"] = product_name
+    
+    for cand in ai_res.get("legal_product_candidates", []):
+        if "product_name" not in cand:
+            cand["product_name"] = cand.get("display_product_name") or cand.get("legal_product_name")
+
+    recall = ai_res.get("recall_reason_summary", {})
+    if isinstance(recall, dict) and ("summary" not in recall or not recall["summary"]):
+        count = recall.get("recall_count", 0)
+        reasons = ", ".join(recall.get("top_recall_reasons", []))
+        recall["summary"] = f"검색된 국내 리콜 사례는 총 {count}건입니다. 주로 발생한 리콜 사유로는 [{reasons or '안전기준 적합성 미달'}] 등이 있습니다. 제조 및 수입 전 해당 물질이나 사유가 없는지 안전성을 시험성적서 등으로 확인하세요."
+
+    kc = ai_res.get("kc_certification_summary", {})
+    if isinstance(kc, dict) and ("summary" not in kc or not kc["summary"]):
+        kc["summary"] = kc.get("note") or "유사한 KC 인증 내역이 존재하지 않거나 매칭 수준이 낮아 검출되지 않았습니다."
+
+    return ai_res
+
 @app.post("/diagnoses")
 def create_diagnosis(
     request: DiagnosisRequest,
@@ -426,7 +448,31 @@ def create_diagnosis(
     db.refresh(case)
 
     try:
-        ai_result = create_mock_ai_result(case_id, request)
+        # FastAPI AI RAG 서버(포트 8001)에 요청 전송
+        payload = {
+            "product_name": request.product_name,
+            "user_query": request.user_query or "",
+            "target_age": request.target_age or "",
+            "material_text": request.material_text or "",
+            "power_type": request.power_type or "",
+            "battery_included": request.battery_included or False,
+            "import_or_manufacture": request.import_or_manufacture or "",
+        }
+        
+        # LLM 추론 시간(로딩 포함)을 감안하여 timeout 넉넉하게 설정
+        response = requests.post(AI_SERVER_URL, json=payload, timeout=300.0)
+        
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"AI server error: {response.text}"
+            )
+            
+        ai_result = response.json()
+        ai_result["case_id"] = case_id
+        
+        # 프론트엔드 UI 기대 포맷에 맞게 데이터 보정 및 스키마 매핑
+        ai_result = map_ai_response_to_frontend(ai_result, request.product_name)
 
         case.status = "success"
         case.ai_output_json = ai_result
@@ -446,7 +492,7 @@ def create_diagnosis(
 
         raise HTTPException(
             status_code=500,
-            detail="ai_diagnosis_failed",
+            detail=f"ai_diagnosis_failed: {str(exc)}",
         )
 
 
