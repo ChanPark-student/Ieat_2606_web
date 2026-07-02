@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { createDiagnosis } from "../api/diagnosisApi";
+import { sampleCases } from "../data/sampleCases";
 
 export default function DiagnosisNewPage() {
   const navigate = useNavigate();
@@ -24,6 +25,26 @@ export default function DiagnosisNewPage() {
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleSampleSelect(e) {
+    const idx = e.target.value;
+    if (idx === "") return;
+    const sample = sampleCases[Number(idx)];
+    setForm({
+      product_name: sample.product_name || "",
+      user_query: sample.user_query || "",
+      target_age: sample.target_age || "어린이 13세 이하",
+      material_text: sample.material_text || "",
+      power_type: sample.power_type || "전원 없음",
+      battery_included: sample.battery_included || false,
+      import_or_manufacture: sample.import_or_manufacture || "수입",
+      model_name: sample.model_name || "",
+      brand_name: sample.brand_name || "",
+      maker_country: sample.maker_country || "",
+      cert_num: sample.cert_num || "",
+      additional_info: sample.additional_info || "",
+    });
   }
 
   async function handleSubmit(e) {
@@ -68,6 +89,19 @@ export default function DiagnosisNewPage() {
         </section>
 
         <form onSubmit={handleSubmit} className="form-layout">
+          <section className="form-section" style={{ background: "rgba(240, 246, 255, 0.6)", borderColor: "var(--primary)", borderStyle: "dashed" }}>
+            <h2>시연용 10대 샘플 자동 입력</h2>
+            <div className="field">
+              <label>기획자 전용 샘플 품목 선택 (선택 시 폼 자동 완성)</label>
+              <select onChange={handleSampleSelect} defaultValue="" style={{ padding: "10px 14px", borderRadius: "10px", width: "100%", fontWeight: 600 }}>
+                <option value="">-- 샘플 품목 선택 (원하는 시연 샘플을 고르세요) --</option>
+                {sampleCases.map((sc, i) => (
+                  <option key={i} value={i}>{sc.label}</option>
+                ))}
+              </select>
+            </div>
+          </section>
+
           <section className="form-section">
             <h2>기본 정보</h2>
 
